@@ -53,7 +53,7 @@ namespace MidiToTTR
         {
             const int BASE_OFFSET = 60; // Standard TTR themes map to the 60-72 range
                                         // We need to remap this 
-                                        // [0:Left Tap] [1:Left Shake] [2:Center Tap] [3:Right Shake] [4:Right Tap] [5:Center Shake]
+                                        // For reference: [0:Left Tap] [1:Left Shake] [2:Center Tap] [3:Right Shake] [4:Right Tap] [5:Center Shake]
             int localNote = midiNote % 12;
             switch (localNote)
             {
@@ -66,7 +66,7 @@ namespace MidiToTTR
                 case 3: // fourth lane, undefined
                     return null;
                 case 4: // open note, map to center shake
-                    return 5;
+                    return 5 + BASE_OFFSET;
                 default:
                     return null;
             }
