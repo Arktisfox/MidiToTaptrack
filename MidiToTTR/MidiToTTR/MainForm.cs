@@ -14,26 +14,6 @@ namespace MidiToTTR
             InitializeComponent();
         }
 
-        private void linkLabelHelp_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-        {
-            MessageBox.Show(@"This tool takes a MIDI input using note mappings from Guitar Hero charting programs (e.g. Moonscraper, Editor On Fire)
-
-[Mapping]
-Easy difficulty MIDI notes: 60-71
-Medium difficulty MIDI notes: 72-83
-Hard difficulty MIDI notes: 84-95
-Extreme difficulty MIDI notes: 96-107
-
-All 12 notes per difficulty are available for use.
-Typically TTR Themes are mapped to the following notes:
-[0:Left Tap] [1:Left Shake] [2:Center Tap] [3:Right Shake] [4:Right Tap] [5:Center Shake]
-
-[Output Format]
-Use binary output format for iOS TTR, and Tap Tap Player
-Use xml output format for Android TTR4 only
-", "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
         private void buttonBrowseMidi_Click(object sender, EventArgs e)
         {
             var dialog = new CommonOpenFileDialog();
@@ -60,6 +40,35 @@ Use xml output format for Android TTR4 only
             if (result == CommonFileDialogResult.Ok)
             {
                 textBoxOutputPath.Text = dialog.FileName;
+            }
+        }
+
+        private int? RemapNote_Revenge(int midiNote)
+        {
+            const int BASE_OFFSET = 60; // Standard TTR themes map to the 60-72 range
+            return (midiNote % 12) + BASE_OFFSET;
+        }
+
+        private int? RemapNote_Reloaded(int midiNote)
+        {
+            const int BASE_OFFSET = 60; // Standard TTR themes map to the 60-72 range
+                                        // We need to remap this 
+                                        // [0:Left Tap] [1:Left Shake] [2:Center Tap] [3:Right Shake] [4:Right Tap] [5:Center Shake]
+            int localNote = midiNote % 12;
+            switch (localNote)
+            {
+                case 0: // first lane
+                    return 0 + BASE_OFFSET;
+                case 1: // second lane
+                    return 2 + BASE_OFFSET;
+                case 2: // third lane
+                    return 4 + BASE_OFFSET;
+                case 3: // fourth lane, undefined
+                    return null;
+                case 4: // open note, map to center shake
+                    return 5;
+                default:
+                    return null;
             }
         }
 
@@ -128,6 +137,8 @@ Use xml output format for Android TTR4 only
             List<KBMidiEvent> sharedEvents = new List<KBMidiEvent>();
 
             // state
+            bool useReloaedMapping = radioButtonReloaded.Checked;
+
             double currentTimeInSeconds = 0d;
             double currentTimeInQuarterNotes = 0d;
 
@@ -219,13 +230,13 @@ Use xml output format for Android TTR4 only
                     // check if we have a note
                     if (cm.Command == ChannelCommand.NoteOn)
                     {
-                        int laneIndex = cm.Data1;
+                        int midiNote = cm.Data1;
                         bool isNoteOn = (cm.Data2 != 0);
 
-                        int localLaneIndex = (laneIndex % 12) + 60;
-                        var file = GetFileForNote(files, laneIndex);
+                        int? localLaneIndex = (useReloaedMapping) ? RemapNote_Reloaded(midiNote) : RemapNote_Revenge(midiNote);
+                        var file = GetFileForNote(files, midiNote);
 
-                        if (file != null)
+                        if (localLaneIndex != null && file != null)
                         {
                             var track = file.tracks.First();
                             if (!isNoteOn)
@@ -235,7 +246,7 @@ Use xml output format for Android TTR4 only
                                     type = KBMidiEvent.TYPE_NOTEOFF,
                                     velocity = 0,
                                     channel = cm.MidiChannel,
-                                    note = localLaneIndex,
+                                    note = localLaneIndex.Value,
                                     time = currentTimeInSeconds,
                                     timeInQuarterNotes = currentTimeInQuarterNotes
                                 };
@@ -248,7 +259,7 @@ Use xml output format for Android TTR4 only
                                     type = KBMidiEvent.TYPE_NOTEON,
                                     velocity = 127,
                                     channel = cm.MidiChannel,
-                                    note = localLaneIndex,
+                                    note = localLaneIndex.Value,
                                     time = currentTimeInSeconds,
                                     timeInQuarterNotes = currentTimeInQuarterNotes
                                 };
@@ -289,7 +300,7 @@ Use xml output format for Android TTR4 only
                 MessageBox.Show("Output path not set.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            if(textBoxOutputPath.Text.Equals(textBoxMidiPath.Text, StringComparison.CurrentCultureIgnoreCase))
+            if (textBoxOutputPath.Text.Equals(textBoxMidiPath.Text, StringComparison.CurrentCultureIgnoreCase))
             {
                 MessageBox.Show("Output path must not be the same as the MIDI path.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
@@ -304,7 +315,8 @@ Use xml output format for Android TTR4 only
             }
 
             // convert to a dictionary of KBMidiFile
-            var files = ConvertToKB(textBoxMidiPath.Text);
+            string inputPath = textBoxMidiPath.Text;
+            var files = ConvertToKB(inputPath);
             if (files.Count == 0)
             {
                 MessageBox.Show("No data was converted, check that your MIDI notes line up with what's expected.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -315,21 +327,22 @@ Use xml output format for Android TTR4 only
             var archived = NSKeyedUnarchiver.Archiver.Archive(files);
             try
             {
-                if (File.Exists(textBoxOutputPath.Text)) File.Delete(textBoxOutputPath.Text);
+                string outputPath = textBoxOutputPath.Text;
+                if (File.Exists(outputPath)) File.Delete(outputPath);
                 if (radioButtonBinary.Checked)
                 {
-                    using (var stream = File.OpenWrite(textBoxOutputPath.Text))
+                    using (var stream = File.OpenWrite(outputPath))
                     {
                         BinaryPropertyListWriter.Write(stream, archived);
                     }
                 }
-                else if(radioButtonXML.Checked)
+                else if (radioButtonXML.Checked)
                 {
-                    File.WriteAllText(textBoxOutputPath.Text, archived.ToXmlPropertyList());
+                    File.WriteAllText(outputPath, archived.ToXmlPropertyList());
                 }
                 MessageBox.Show("Conversion was successful!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -338,6 +351,31 @@ Use xml output format for Android TTR4 only
         private void MainForm_Load(object sender, EventArgs e)
         {
 
+        }
+
+        private void linkLabelOutputHelp_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            MessageBox.Show(@"[Output Format]
+Use binary output format for iOS TTR, and Tap Tap Player
+Use xml output format for Android TTR4 only
+", "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void linkLabelMappingHelp_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            MessageBox.Show(@"[MIDI Note Mapping]
+Easy difficulty MIDI notes: 60-71
+Medium difficulty MIDI notes: 72-83
+Hard difficulty MIDI notes: 84-95
+Extreme difficulty MIDI notes: 96-107
+
+All 12 notes per difficulty are available for use.
+Typically TTR Themes are mapped to the following notes:
+[0:Left Tap] [1:Left Shake] [2:Center Tap] [3:Right Shake] [4:Right Tap] [5:Center Shake]
+
+[Tap Tap Reloaded Mapping]
+When Tap Tap Reloaded mapping is selected, the first lanes are mapped as follows:
+[0:Left Tap] [1:Middle Tap] [2:Right Tap] [4:Center Shake]", "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }
 }
