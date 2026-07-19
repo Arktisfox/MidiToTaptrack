@@ -119,7 +119,7 @@
             // buttonConvert
             // 
             buttonConvert.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            buttonConvert.Location = new Point(341, 134);
+            buttonConvert.Location = new Point(341, 136);
             buttonConvert.Name = "buttonConvert";
             buttonConvert.Size = new Size(75, 23);
             buttonConvert.TabIndex = 7;
@@ -131,7 +131,8 @@
             // 
             label4.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             label4.AutoSize = true;
-            label4.Location = new Point(12, 138);
+            label4.ForeColor = SystemColors.ControlDark;
+            label4.Location = new Point(12, 140);
             label4.Name = "label4";
             label4.Size = new Size(114, 15);
             label4.TabIndex = 8;
