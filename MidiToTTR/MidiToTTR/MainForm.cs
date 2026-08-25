@@ -267,6 +267,28 @@ namespace MidiToTTR
                             }
                         }
                     }
+                    else if(cm.Command == ChannelCommand.NoteOff)
+                    {
+                        int midiNote = cm.Data1;
+
+                        int? localLaneIndex = (useReloaedMapping) ? RemapNote_Reloaded(midiNote) : RemapNote_Revenge(midiNote);
+                        var file = GetFileForNote(files, midiNote);
+
+                        if (localLaneIndex != null && file != null)
+                        {
+                            var track = file.tracks.First();
+                            var @event = new KBMidiEvent
+                            {
+                                type = KBMidiEvent.TYPE_NOTEOFF,
+                                velocity = 0,
+                                channel = cm.MidiChannel,
+                                note = localLaneIndex.Value,
+                                time = currentTimeInSeconds,
+                                timeInQuarterNotes = currentTimeInQuarterNotes
+                            };
+                            track.events.Add(@event);
+                        }
+                    }
                 }
 
                 // reset flag
