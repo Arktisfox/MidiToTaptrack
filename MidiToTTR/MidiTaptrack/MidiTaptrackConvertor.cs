@@ -2,6 +2,7 @@ using System.Text;
 using Claunia.PropertyList;
 using MidiToTTR.KBMidiFile;
 using Sanford.Multimedia.Midi;
+using TTRToMidi;
 
 public class MidiTaptrackConvertor
 {
@@ -299,4 +300,147 @@ public class MidiTaptrackConvertor
             throw ex;
         }
     }
+
+    private static Sequence TapTrackToSequence(TTRTrack ttrTrack)
+        {
+            float TapAndHoldThresholdDuration = 0.45f;
+            TapAndHoldThresholdDuration = 0.3f;
+
+            var timeDivision = ttrTrack.Difficulties.Values.First().TimeDivision;
+
+            //write midi
+            var midi = new Sequence((int)Math.Round(timeDivision));
+            var track = new Track();
+
+            var trackNameEvent = new MetaTextBuilder(MetaType.TrackName, "PART GUITAR");
+            trackNameEvent.Build();
+            track.Insert(0, trackNameEvent.Result);
+
+            // process the notes in the weird way TTR does
+            // we do this because some customs are garbage without doing this
+            List<ITTRTrackEvent> processNotes = new List<ITTRTrackEvent>();
+            List<ITTRTrackEvent> finalNotes = new List<ITTRTrackEvent>();
+
+            foreach (var diff in ttrTrack.Difficulties)
+            {
+                int offset = 12 * ((int)diff.Key - 1);
+                processNotes.Clear();
+
+                var diffData = diff.Value;
+                var diffNotes = diff.Value.Events;
+
+                for (int i = 0; i < diffNotes.Count; i++)
+                {
+                    var ttrEvent = diffNotes[i];
+                    if (ttrEvent is TTRNoteOffEvent noteOff)
+                    {
+                        for (int j = 0; j < processNotes.Count; j++)
+                        {
+                            var pairNote = (TTRNoteOnEvent)processNotes[j];
+                            if (pairNote.Note == noteOff.Note)
+                            {
+                                int finalNote = noteOff.Note;
+
+                                double duration = noteOff.Time - pairNote.Time;
+                                double endTime = noteOff.Time;
+                                if (duration <= TapAndHoldThresholdDuration)
+                                {
+                                    endTime = pairNote.Time + 0.001;
+                                }
+
+                                var onNote = new TTRNoteOnEvent()
+                                {
+                                    Note = finalNote + offset,
+                                    Time = pairNote.Time
+                                };
+
+                                var offNote = new TTRNoteOffEvent()
+                                {
+                                    Note = finalNote + offset,
+                                    Time = endTime
+                                };
+
+                                finalNotes.Add(offNote);
+                                finalNotes.Add(onNote);
+
+                                processNotes.RemoveAt(j--);
+                            }
+                        }
+                    }
+                    else if (ttrEvent is TTRNoteOnEvent)
+                    {
+                        processNotes.Add(ttrEvent);
+                    }
+                }
+            }
+
+            // compile a final list of events
+            var finalEvents = new List<ITTRTrackEvent>();
+            finalEvents.AddRange(finalNotes);
+            finalEvents.AddRange(ttrTrack.Difficulties.Values.First().Events.Where(x => x is TTRTempoEvent));
+            finalEvents = finalEvents.OrderBy(x => x.Time).ThenBy(x => !(x is TTRTempoEvent)).ToList();
+
+            // convert ttr2track
+            double lastEventTime = 0.0;
+            int lastTick = 0;
+            double microsecondsPerQuarterNote = 60000000.0 / 120.0; // Default to 120 BPM
+
+            foreach (var @event in finalEvents)
+            {
+                double kSecondsPerQuarterNote = microsecondsPerQuarterNote / 1000000.0;
+                double kSecondsPerTick = kSecondsPerQuarterNote / midi.Division;
+
+                int deltaTicks = (int)Math.Round((@event.Time - lastEventTime) / kSecondsPerTick);
+                lastTick += deltaTicks;
+
+                if (@event is TTRTempoEvent tempoEvent)
+                {
+                    microsecondsPerQuarterNote = 60000000.0 / tempoEvent.Tempo;
+                    var tempoChangeBuilder = new TempoChangeBuilder() { Tempo = (int)microsecondsPerQuarterNote };
+                    tempoChangeBuilder.Build();
+                    track.Insert(lastTick, tempoChangeBuilder.Result);
+                }
+                else if (@event is ITTRNoteEvent noteEvent)
+                {
+                    var noteBuilder = new ChannelMessageBuilder();
+                    noteBuilder.Command = ChannelCommand.NoteOn;
+                    noteBuilder.Data1 = noteEvent.Note;
+                    noteBuilder.Data2 = (@event is TTRNoteOffEvent) ? 0 : 100;
+                    noteBuilder.Build();
+
+                    track.Insert(lastTick, noteBuilder.Result);
+                }
+
+                lastEventTime = @event.Time;
+            }
+
+            midi.Add(track);
+            return midi;
+        }
+
+
+        public static void ConvertToMidi(string inputPath, string outputPath)
+        {
+            TTRTrack track = null;
+            try
+            {
+                track = new TTRTrack();
+                track.LoadFromPlist(inputPath);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            try
+            {
+                var sequence = TapTrackToSequence(track);
+                sequence.Save(outputPath);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
 }
