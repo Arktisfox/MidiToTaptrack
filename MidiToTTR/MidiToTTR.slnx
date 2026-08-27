@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="MidiToTTR/MidiToTTR.csproj" />
+  <Project Path="TTRToMidi/TTRToMidi.csproj" />
+</Solution>
