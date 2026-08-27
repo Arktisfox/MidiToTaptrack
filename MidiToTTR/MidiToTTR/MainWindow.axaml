@@ -1,0 +1,55 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="240"
+        x:Class="MidiToTTR.MainWindow"
+        Title="MIDI to ttr2_track"
+        Width="460"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid Margin="12" RowSpacing="8" ColumnSpacing="8"
+          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+          ColumnDefinitions="Auto,*,Auto">
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="MIDI File Path:" VerticalAlignment="Center" />
+        <TextBox Grid.Row="0" Grid.Column="1" x:Name="textBoxMidiPath" />
+        <Button Grid.Row="0" Grid.Column="2" Content="Browse..." MinWidth="80"
+                HorizontalContentAlignment="Center" Click="BrowseMidi_Click" />
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Output File Path:" VerticalAlignment="Center" />
+        <TextBox Grid.Row="1" Grid.Column="1" x:Name="textBoxOutputPath" />
+        <Button Grid.Row="1" Grid.Column="2" Content="Browse..." MinWidth="80"
+                HorizontalContentAlignment="Center" Click="BrowseOutput_Click" />
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Output Format:" VerticalAlignment="Center" />
+        <Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" ColumnDefinitions="Auto,Auto,*,Auto">
+            <RadioButton Grid.Column="0" x:Name="radioButtonBinary" GroupName="OutputFormat"
+                         IsChecked="True" Content="Binary (iOS, Recommended)" />
+            <RadioButton Grid.Column="1" x:Name="radioButtonXML" GroupName="OutputFormat"
+                         Margin="12,0,0,0" Content="XML (Android)" />
+            <HyperlinkButton Grid.Column="3" Content="(?)" Padding="6,0" VerticalAlignment="Center"
+                             Click="OutputHelp_Click" />
+        </Grid>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Note Mapping:" VerticalAlignment="Center" />
+        <Grid Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" ColumnDefinitions="Auto,Auto,*,Auto">
+            <RadioButton Grid.Column="0" x:Name="radioButtonRevenge" GroupName="NoteMapping"
+                         IsChecked="True" Content="Tap Tap Revenge" />
+            <RadioButton Grid.Column="1" x:Name="radioButtonReloaded" GroupName="NoteMapping"
+                         Margin="12,0,0,0" Content="Tap Tap Reloaded" />
+            <HyperlinkButton Grid.Column="3" Content="(?)" Padding="6,0" VerticalAlignment="Center"
+                             Click="MappingHelp_Click" />
+        </Grid>
+
+        <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Height="1" Background="Gray" Opacity="0.35" />
+
+        <Grid Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Text="Created by Arktisfox" Foreground="Gray" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Content="Convert" MinWidth="80"
+                    HorizontalContentAlignment="Center" Click="Convert_Click" />
+        </Grid>
+    </Grid>
+</Window>
