@@ -5,7 +5,7 @@ using TTR.KBMidi;
 
 namespace TTR;
 
-public class TTRUtils
+public static class TTRUtils
 {
         private static int? RemapNote_Revenge(int midiNote)
         {
