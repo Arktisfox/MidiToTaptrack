@@ -1,15 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <RootNamespace>TTR</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="plist-cil" Version="2.3.1" />
-    <PackageReference Include="Sanford.Multimedia.Midi" Version="6.7.3" />
+    <PackageReference Include="plist-cil" />
+    <PackageReference Include="Sanford.Multimedia.Midi" />
   </ItemGroup>
 
 </Project>
