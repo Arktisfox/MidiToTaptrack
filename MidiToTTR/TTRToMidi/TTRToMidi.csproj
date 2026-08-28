@@ -15,7 +15,5 @@
     <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
-    <PackageReference Include="plist-cil" Version="2.3.1" />
-    <PackageReference Include="Sanford.Multimedia.Midi" Version="6.7.3" />
   </ItemGroup>
 </Project>
