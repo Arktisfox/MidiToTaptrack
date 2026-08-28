@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace NSKeyedUnarchiver
+namespace TTR.NSKeyedUnarchiver
 {
     // This class provides static methods to access the canonical representation of structs
     // returned from `Unarchiver.DeepParse`. Think of a Json object:

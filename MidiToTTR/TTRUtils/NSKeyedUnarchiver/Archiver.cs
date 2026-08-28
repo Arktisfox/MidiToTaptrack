@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Reflection;
 
-namespace NSKeyedUnarchiver
+namespace TTR.NSKeyedUnarchiver
 {
     /// <summary>
     /// Hacky NSKeyedArchiver implementation written with multiple AI models

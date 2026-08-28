@@ -10,7 +10,7 @@
   <ItemGroup>
     <Compile Include="../Shared/FileDialogs.cs" Link="FileDialogs.cs" />
     <PackageReference Include="MessageBox.Avalonia" Version="12.0.0" />
-    <ProjectReference Include="../MidiTaptrack/MidiTaptrack.csproj" />
+    <ProjectReference Include="../TTRUtils/TTRUtils.csproj" />
     <PackageReference Include="Avalonia" Version="12.1.1" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />

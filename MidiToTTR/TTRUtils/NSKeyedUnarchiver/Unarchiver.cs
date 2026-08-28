@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 
-namespace NSKeyedUnarchiver
+namespace TTR.NSKeyedUnarchiver
 {
     public static class Unarchiver
     {

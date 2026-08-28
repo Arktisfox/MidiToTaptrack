@@ -1,5 +1,5 @@
 <Solution>
-  <Project Path="MidiTaptrack/MidiTaptrack.csproj" />
+  <Project Path="TTRUtils/TTRUtils.csproj" />
   <Project Path="MidiToTTR/MidiToTTR.csproj" />
   <Project Path="TTRToMidi/TTRToMidi.csproj" />
 </Solution>

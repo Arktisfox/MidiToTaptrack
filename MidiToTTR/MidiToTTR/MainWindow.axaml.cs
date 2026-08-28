@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
+using TTR;
 using TaptrackTools;
 using MsBoxIcon = MsBox.Avalonia.Enums.Icon;
 
@@ -73,7 +74,7 @@ public partial class MainWindow : Window
 
         try
         {
-            MidiTaptrackConvertor.ConvertToTaptrack(inputPath, outputPath,
+            TTRUtils.ConvertToTaptrack(inputPath, outputPath,
                 radioButtonReloaded.IsChecked == true, radioButtonBinary.IsChecked == true);
         }
         catch (Exception ex)

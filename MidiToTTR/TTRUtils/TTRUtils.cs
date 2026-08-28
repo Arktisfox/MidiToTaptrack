@@ -1,10 +1,11 @@
 using System.Text;
 using Claunia.PropertyList;
-using MidiToTTR.KBMidiFile;
 using Sanford.Multimedia.Midi;
-using TTRToMidi;
+using TTR.KBMidi;
 
-public class MidiTaptrackConvertor
+namespace TTR;
+
+public class TTRUtils
 {
         private static int? RemapNote_Revenge(int midiNote)
         {

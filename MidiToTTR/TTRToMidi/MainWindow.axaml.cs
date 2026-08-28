@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
+using TTR;
 using TaptrackTools;
 using MsBoxIcon = MsBox.Avalonia.Enums.Icon;
 
@@ -84,7 +85,7 @@ public partial class MainWindow : Window
         // convert it to a midi sequence then save it
         try
         {
-            MidiTaptrackConvertor.ConvertToMidi(inputPath, outputPath);
+            TTRUtils.ConvertToMidi(inputPath, outputPath);
             await ShowMessage("Success", "Conversion was successful!", ButtonEnum.Ok, MsBoxIcon.Info);
         }
         catch (Exception ex)
