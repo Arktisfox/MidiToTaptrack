@@ -1,4 +1,4 @@
-﻿namespace MidiToTTR.KBMidiFile
+﻿namespace TTR.KBMidi
 {
     internal class KBMidiTrack
     {

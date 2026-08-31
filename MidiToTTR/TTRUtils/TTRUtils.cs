@@ -1,55 +1,19 @@
-﻿using Claunia.PropertyList;
-using MidiToTTR.KBMidiFile;
-using Sanford.Multimedia.Midi;
-using System.Data;
 using System.Text;
-using WindowsAPICodePack.Dialogs;
+using Claunia.PropertyList;
+using Sanford.Multimedia.Midi;
+using TTR.KBMidi;
 
-namespace MidiToTTR
+namespace TTR;
+
+public static class TTRUtils
 {
-    public partial class MainForm : Form
-    {
-        public MainForm()
-        {
-            InitializeComponent();
-        }
-
-        private void buttonBrowseMidi_Click(object sender, EventArgs e)
-        {
-            var dialog = new CommonOpenFileDialog();
-            dialog.Filters.Add(new CommonFileDialogFilter("MIDI Files", "mid;midi"));
-            CommonFileDialogResult result = dialog.ShowDialog();
-            if (result == CommonFileDialogResult.Ok)
-            {
-                textBoxMidiPath.Text = dialog.FileName;
-
-                // automagically set ttr2_track path if we don't have one already
-                if (string.IsNullOrWhiteSpace(textBoxOutputPath.Text))
-                {
-                    textBoxOutputPath.Text = Path.Combine(Path.GetDirectoryName(dialog.FileName), "taptrack.ttr2_track");
-                }
-            }
-        }
-
-        private void buttonBrowseOutput_Click(object sender, EventArgs e)
-        {
-            var dialog = new CommonSaveFileDialog();
-            dialog.Filters.Add(new CommonFileDialogFilter("TTR Track Files", "ttr2_track"));
-            dialog.DefaultFileName = "taptrack";
-            CommonFileDialogResult result = dialog.ShowDialog();
-            if (result == CommonFileDialogResult.Ok)
-            {
-                textBoxOutputPath.Text = dialog.FileName;
-            }
-        }
-
-        private int? RemapNote_Revenge(int midiNote)
+        private static int? RemapNote_Revenge(int midiNote)
         {
             const int BASE_OFFSET = 60; // Standard TTR themes map to the 60-72 range
             return (midiNote % 12) + BASE_OFFSET;
         }
 
-        private int? RemapNote_Reloaded(int midiNote)
+        private static int? RemapNote_Reloaded(int midiNote)
         {
             const int BASE_OFFSET = 60; // Standard TTR themes map to the 60-72 range
                                         // We need to remap this 
@@ -81,7 +45,7 @@ namespace MidiToTTR
             return -1;
         }
 
-        private static KBMidiFile.KBMidiFile? GetFileForNote(Dictionary<string, KBMidiFile.KBMidiFile> files, int noteIndex)
+        private static KBMidiFile? GetFileForNote(Dictionary<string, KBMidiFile> files, int noteIndex)
         {
             int level = DifficultyLevelForNote(noteIndex);
             if (level >= 0)
@@ -93,7 +57,7 @@ namespace MidiToTTR
                 }
                 else
                 {
-                    file = new KBMidiFile.KBMidiFile();
+                    file = new KBMidiFile();
                     file.tracks.Add(new KBMidiTrack()); // create the track that we'll use
 
                     files.Add(levelStr, file);
@@ -106,10 +70,10 @@ namespace MidiToTTR
             }
         }
 
-        private Dictionary<string, KBMidiFile.KBMidiFile> ConvertToKB(string path)
+        private static Dictionary<string, KBMidiFile> ConvertToKB(string path, bool useReloaedMapping)
         {
             // files
-            var files = new Dictionary<string, KBMidiFile.KBMidiFile>();
+            var files = new Dictionary<string, KBMidiFile>();
 
             // load in events
             var sequence = new Sequence(path);
@@ -137,8 +101,6 @@ namespace MidiToTTR
             List<KBMidiEvent> sharedEvents = new List<KBMidiEvent>();
 
             // state
-            bool useReloaedMapping = radioButtonReloaded.Checked;
-
             double currentTimeInSeconds = 0d;
             double currentTimeInQuarterNotes = 0d;
 
@@ -233,7 +195,7 @@ namespace MidiToTTR
                         int midiNote = cm.Data1;
                         bool isNoteOn = (cm.Data2 != 0);
 
-                        int? localLaneIndex = (useReloaedMapping) ? RemapNote_Reloaded(midiNote) : RemapNote_Revenge(midiNote);
+                        int? localLaneIndex = useReloaedMapping ? RemapNote_Reloaded(midiNote) : RemapNote_Revenge(midiNote);
                         var file = GetFileForNote(files, midiNote);
 
                         if (localLaneIndex != null && file != null)
@@ -309,95 +271,177 @@ namespace MidiToTTR
             return files;
         }
 
-        private void buttonConvert_Click(object sender, EventArgs e)
+    public static void ConvertToTaptrack(string inputPath, string outputPath, bool useReloaedMapping, bool convertToBplist)
+    {
+        var files = ConvertToKB(inputPath, useReloaedMapping);
+        if(files.Count == 0)
         {
-            // sanity checking
-            if (string.IsNullOrWhiteSpace(textBoxMidiPath.Text))
+            throw new Exception("No data was converted, check that your MIDI notes line up with what's expected.");
+        }
+
+        var archived = NSKeyedUnarchiver.Archiver.Archive(files);
+        try
+        {
+            if (File.Exists(outputPath)) File.Delete(outputPath);
+            if (convertToBplist)
             {
-                MessageBox.Show("MIDI path not set.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-            if (string.IsNullOrWhiteSpace(textBoxOutputPath.Text))
-            {
-                MessageBox.Show("Output path not set.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-            if (textBoxOutputPath.Text.Equals(textBoxMidiPath.Text, StringComparison.CurrentCultureIgnoreCase))
-            {
-                MessageBox.Show("Output path must not be the same as the MIDI path.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-            if (File.Exists(textBoxOutputPath.Text))
-            {
-                var res = MessageBox.Show("Output path already exists. Do you want to overwrite it?", "Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                if (res != DialogResult.Yes)
+                using (var stream = File.OpenWrite(outputPath))
                 {
-                    return;
+                    BinaryPropertyListWriter.Write(stream, archived);
                 }
             }
-
-            // convert to a dictionary of KBMidiFile
-            string inputPath = textBoxMidiPath.Text;
-            var files = ConvertToKB(inputPath);
-            if (files.Count == 0)
+            else
             {
-                MessageBox.Show("No data was converted, check that your MIDI notes line up with what's expected.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
+                File.WriteAllText(outputPath, archived.ToXmlPropertyList());
             }
+            // MessageBox.Show("Conversion was successful!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
 
-            // archive and save
-            var archived = NSKeyedUnarchiver.Archiver.Archive(files);
-            try
+    private static Sequence TapTrackToSequence(TTRTrack ttrTrack)
+        {
+            float TapAndHoldThresholdDuration = 0.45f;
+            TapAndHoldThresholdDuration = 0.3f;
+
+            var timeDivision = ttrTrack.Difficulties.Values.First().TimeDivision;
+
+            //write midi
+            var midi = new Sequence((int)Math.Round(timeDivision));
+            var track = new Track();
+
+            var trackNameEvent = new MetaTextBuilder(MetaType.TrackName, "PART GUITAR");
+            trackNameEvent.Build();
+            track.Insert(0, trackNameEvent.Result);
+
+            // process the notes in the weird way TTR does
+            // we do this because some customs are garbage without doing this
+            List<ITTRTrackEvent> processNotes = new List<ITTRTrackEvent>();
+            List<ITTRTrackEvent> finalNotes = new List<ITTRTrackEvent>();
+
+            foreach (var diff in ttrTrack.Difficulties)
             {
-                string outputPath = textBoxOutputPath.Text;
-                if (File.Exists(outputPath)) File.Delete(outputPath);
-                if (radioButtonBinary.Checked)
+                int offset = 12 * ((int)diff.Key - 1);
+                processNotes.Clear();
+
+                var diffData = diff.Value;
+                var diffNotes = diff.Value.Events;
+
+                for (int i = 0; i < diffNotes.Count; i++)
                 {
-                    using (var stream = File.OpenWrite(outputPath))
+                    var ttrEvent = diffNotes[i];
+                    if (ttrEvent is TTRNoteOffEvent noteOff)
                     {
-                        BinaryPropertyListWriter.Write(stream, archived);
+                        for (int j = 0; j < processNotes.Count; j++)
+                        {
+                            var pairNote = (TTRNoteOnEvent)processNotes[j];
+                            if (pairNote.Note == noteOff.Note)
+                            {
+                                int finalNote = noteOff.Note;
+
+                                double duration = noteOff.Time - pairNote.Time;
+                                double endTime = noteOff.Time;
+                                if (duration <= TapAndHoldThresholdDuration)
+                                {
+                                    endTime = pairNote.Time + 0.001;
+                                }
+
+                                var onNote = new TTRNoteOnEvent()
+                                {
+                                    Note = finalNote + offset,
+                                    Time = pairNote.Time
+                                };
+
+                                var offNote = new TTRNoteOffEvent()
+                                {
+                                    Note = finalNote + offset,
+                                    Time = endTime
+                                };
+
+                                finalNotes.Add(offNote);
+                                finalNotes.Add(onNote);
+
+                                processNotes.RemoveAt(j--);
+                            }
+                        }
+                    }
+                    else if (ttrEvent is TTRNoteOnEvent)
+                    {
+                        processNotes.Add(ttrEvent);
                     }
                 }
-                else if (radioButtonXML.Checked)
+            }
+
+            // compile a final list of events
+            var finalEvents = new List<ITTRTrackEvent>();
+            finalEvents.AddRange(finalNotes);
+            finalEvents.AddRange(ttrTrack.Difficulties.Values.First().Events.Where(x => x is TTRTempoEvent));
+            finalEvents = finalEvents.OrderBy(x => x.Time).ThenBy(x => !(x is TTRTempoEvent)).ToList();
+
+            // convert ttr2track
+            double lastEventTime = 0.0;
+            int lastTick = 0;
+            double microsecondsPerQuarterNote = 60000000.0 / 120.0; // Default to 120 BPM
+
+            foreach (var @event in finalEvents)
+            {
+                double kSecondsPerQuarterNote = microsecondsPerQuarterNote / 1000000.0;
+                double kSecondsPerTick = kSecondsPerQuarterNote / midi.Division;
+
+                int deltaTicks = (int)Math.Round((@event.Time - lastEventTime) / kSecondsPerTick);
+                lastTick += deltaTicks;
+
+                if (@event is TTRTempoEvent tempoEvent)
                 {
-                    File.WriteAllText(outputPath, archived.ToXmlPropertyList());
+                    microsecondsPerQuarterNote = 60000000.0 / tempoEvent.Tempo;
+                    var tempoChangeBuilder = new TempoChangeBuilder() { Tempo = (int)microsecondsPerQuarterNote };
+                    tempoChangeBuilder.Build();
+                    track.Insert(lastTick, tempoChangeBuilder.Result);
                 }
-                MessageBox.Show("Conversion was successful!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                else if (@event is ITTRNoteEvent noteEvent)
+                {
+                    var noteBuilder = new ChannelMessageBuilder();
+                    noteBuilder.Command = ChannelCommand.NoteOn;
+                    noteBuilder.Data1 = noteEvent.Note;
+                    noteBuilder.Data2 = (@event is TTRNoteOffEvent) ? 0 : 100;
+                    noteBuilder.Build();
+
+                    track.Insert(lastTick, noteBuilder.Result);
+                }
+
+                lastEventTime = @event.Time;
+            }
+
+            midi.Add(track);
+            return midi;
+        }
+
+
+        public static void ConvertToMidi(string inputPath, string outputPath)
+        {
+            TTRTrack track = null;
+            try
+            {
+                track = new TTRTrack();
+                track.LoadFromPlist(inputPath);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                throw ex;
+            }
+
+            try
+            {
+                var sequence = TapTrackToSequence(track);
+                sequence.Save(outputPath);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
             }
         }
 
-        private void MainForm_Load(object sender, EventArgs e)
-        {
-
-        }
-
-        private void linkLabelOutputHelp_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-        {
-            MessageBox.Show(@"[Output Format]
-Use binary output format for iOS TTR, and Tap Tap Player
-Use xml output format for Android TTR4 only
-", "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        private void linkLabelMappingHelp_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-        {
-            MessageBox.Show(@"[MIDI Note Mapping]
-Easy difficulty MIDI notes: 60-71
-Medium difficulty MIDI notes: 72-83
-Hard difficulty MIDI notes: 84-95
-Extreme difficulty MIDI notes: 96-107
-
-All 12 notes per difficulty are available for use.
-Typically TTR Themes are mapped to the following notes:
-[0:Left Tap] [1:Left Shake] [2:Center Tap] [3:Right Shake] [4:Right Tap] [5:Center Shake]
-
-[Tap Tap Reloaded Mapping]
-When Tap Tap Reloaded mapping is selected, the first lanes are mapped as follows:
-[0:Left Tap] [1:Middle Tap] [2:Right Tap] [4:Center Shake]", "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-    }
 }

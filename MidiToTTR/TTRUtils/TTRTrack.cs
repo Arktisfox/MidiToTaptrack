@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TTRToMidi
+namespace TTR
 {
     public enum TTRDifficultyLevel
     {

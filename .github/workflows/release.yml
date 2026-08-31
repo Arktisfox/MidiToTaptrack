@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-latest
+            rid: osx-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Publish
+        shell: bash
+        run: |
+          mkdir -p dist
+          for app in MidiToTTR TTRToMidi; do
+            dotnet publish "MidiToTTR/$app/$app.csproj" \
+              --configuration Release \
+              --runtime ${{ matrix.rid }} \
+              --self-contained true \
+              -p:PublishSingleFile=true \
+              -p:IncludeNativeLibrariesForSelfExtract=true \
+              -p:DebugType=none \
+              --output "publish/$app"
+
+            # Single-file publish emits exactly one binary per app.
+            # Package with each platform's native tool; all three keep the Unix executable bit.
+            name="$app-${{ matrix.rid }}"
+            cd "publish/$app"
+            case "$RUNNER_OS" in
+              Linux)   tar cf - "$app" | gzip -9 > "../../dist/$name.tar.gz" ;;
+              macOS)   zip -9 -X "../../dist/$name.zip" "$app" ;;
+              Windows) 7z a -mx9 "../../dist/$name.zip" "$app.exe" ;;
+            esac
+            cd ../..
+          done
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.rid }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Pre-release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          find artifacts -type f -exec ls -l {} +
+          gh release create "build-${{ github.run_number }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Build ${{ github.run_number }}" \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --notes "Automated pre-release from \`${GITHUB_SHA:0:7}\`.
+
+          Self-contained single-file builds — no .NET runtime required.
+
+          | Platform | MIDI to ttr2_track | ttr2_track to MIDI |
+          |---|---|---|
+          | Linux x64 | \`MidiToTTR-linux-x64.tar.gz\` | \`TTRToMidi-linux-x64.tar.gz\` |
+          | Windows x64 | \`MidiToTTR-win-x64.zip\` | \`TTRToMidi-win-x64.zip\` |
+          | macOS arm64 | \`MidiToTTR-osx-arm64.zip\` | \`TTRToMidi-osx-arm64.zip\` |
+
+          The macOS builds are unsigned, so Gatekeeper needs \`xattr -d com.apple.quarantine <file>\` after unpacking." \
+            $(find artifacts -type f)

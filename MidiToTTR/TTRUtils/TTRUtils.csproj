@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>TTR</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="plist-cil" />
+    <PackageReference Include="Sanford.Multimedia.Midi" />
+  </ItemGroup>
+
+</Project>
